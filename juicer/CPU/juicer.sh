@@ -509,21 +509,21 @@ then
                 if [ "$methylation" = 1 ]
                 then
                     # The -M flag is already used in bwameth.py
-                    echo "Running bwameth.py $threadstring -5 --do-not-penalize-chimeras --reference ${refSeq} --read-group $rg $name1$ext > $name$ext.sam"
-                    $call_bwameth $threadstring -5 --do-not-penalize-chimeras --reference ${refSeq} --read-group '$rg' $name1$ext > $name$ext.sam
+                    echo "Running bwameth.py $threadstring -5 --do-not-penalize-chimeras --reference ${refSeq} --read-group $rg $name1$ext | gzip > $name$ext.sam.gz"
+                    $call_bwameth $threadstring -5 --do-not-penalize-chimeras --reference ${refSeq} --read-group '$rg' $name1$ext | gzip > $name$ext.sam.gz
 		else
-		    echo "Running command $bwa_cmd mem -5M $threadstring -R $rg $refSeq $name1$ext > $name$ext.sam"
-		    $bwa_cmd mem -K 320000000 -5M $threadstring -R "$rg" $refSeq $file1 > $name$ext.sam 
+		    echo "Running command $bwa_cmd mem -5M $threadstring -R $rg $refSeq $name1$ext | gzip > $name$ext.sam.gz"
+		    $bwa_cmd mem -K 320000000 -5M $threadstring -R "$rg" $refSeq $file1 | gzip > $name$ext.sam.gz
 		fi
 	    else
 		if [ "$methylation" = 1 ]
 		then
 		    # The -M flag is already used in bwameth.py
-		    echo "Running bwameth.py $threadstring -5SP --do-not-penalize-chimeras --read-group '$rg'  --reference ${refSeq} $name1$ext $name2$ext > $name$ext.sam"
-		    $call_bwameth $threadstring -5SP --do-not-penalize-chimeras --read-group '$rg' --reference ${refSeq} $name1$ext $name2$ext > $name$ext.sam
+		    echo "Running bwameth.py $threadstring -5SP --do-not-penalize-chimeras --read-group '$rg'  --reference ${refSeq} $name1$ext $name2$ext | gzip > $name$ext.sam.gz"
+		    $call_bwameth $threadstring -5SP --do-not-penalize-chimeras --read-group '$rg' --reference ${refSeq} $name1$ext $name2$ext | gzip > $name$ext.sam.gz
 		else
-		    echo "Running command bwa mem -SP5M $threadstring -R $rg $refSeq $file1 $file2 > $name$ext.sam" 
-		    $bwa_cmd mem -K 320000000 -SP5M $threadstring -R "$rg" $refSeq $file1 $file2 > $name$ext.sam
+		    echo "Running command bwa mem -SP5M $threadstring -R $rg $refSeq $file1 $file2 | gzip > $name$ext.sam.gz" 
+		    $bwa_cmd mem -K 320000000 -SP5M $threadstring -R "$rg" $refSeq $file1 $file2 | gzip > $name$ext.sam.gz
 		fi
 	    fi
 	    if [ $? -ne 0 ]
@@ -531,10 +531,10 @@ then
 		echo "***! Alignment of $file1 $file2 failed."
 		exit 1
 	    else
-		echo "(-:  Align of $name$ext.sam done successfully"
+		echo "(-:  Align of $name$ext.sam.gz done successfully"
 	    fi
 	else
-	    echo "Using already aligned reads $name$ext.sam";
+	    echo "Using already aligned reads $name$ext.sam.gz";
         fi
 
 	# call chimeric script to deal with chimeric reads; sorted file is sorted by read name at this point
@@ -542,17 +542,17 @@ then
 	then		
 	    if [ $singleend -eq 1 ]
 	    then
-		awk -v stem=${name}${ext}_norm -v site_file=$site_file -v singleend=$singleend -f $juiceDir/scripts/common/chimeric_sam.awk $name$ext.sam | samtools sort  -t cb -n $sthreadstring >  ${name}${ext}.bam
+		zcat $name$ext.sam.gz | awk -v stem=${name}${ext}_norm -v site_file=$site_file -v singleend=$singleend -f $juiceDir/scripts/common/chimeric_sam.awk | samtools sort  -t cb -n $sthreadstring >  ${name}${ext}.bam
 	    else
-		awk -v stem=${name}${ext}_norm -v site_file=$site_file -f $juiceDir/scripts/common/chimeric_sam.awk $name$ext.sam | samtools sort -t cb -n $sthreadstring >  ${name}${ext}.bam
+		zcat $name$ext.sam.gz | awk -v stem=${name}${ext}_norm -v site_file=$site_file -f $juiceDir/scripts/common/chimeric_sam.awk | samtools sort -t cb -n $sthreadstring >  ${name}${ext}.bam
 	    fi
 	else
 	    if [ $singleend -eq 1 ]
 	    then
-		awk -v stem=${name}${ext}_norm -v singleend=$singleend -f $juiceDir/scripts/common/chimeric_sam.awk $name$ext.sam | samtools sort  -t cb -n $sthreadstring >  ${name}${ext}.bam
+		zcat $name$ext.sam.gz | awk -v stem=${name}${ext}_norm -v singleend=$singleend -f $juiceDir/scripts/common/chimeric_sam.awk | samtools sort  -t cb -n $sthreadstring >  ${name}${ext}.bam
 	    else
-		awk -v stem=${name}${ext}_norm -f $juiceDir/scripts/common/chimeric_sam.awk $name$ext.sam > $name$ext.sam2
-		awk -v avgInsertFile=${name}${ext}_norm.txt.res.txt -f $juiceDir/scripts/common/adjust_insert_size.awk $name$ext.sam2 | samtools sort -t cb -n $sthreadstring >  ${name}${ext}.bam
+		zcat $name$ext.sam.gz | awk -v stem=${name}${ext}_norm -f $juiceDir/scripts/common/chimeric_sam.awk | gzip > $name$ext.sam2.gz
+		zcat $name$ext.sam2.gz | awk -v avgInsertFile=${name}${ext}_norm.txt.res.txt -f $juiceDir/scripts/common/adjust_insert_size.awk | samtools sort -t cb -n $sthreadstring >  ${name}${ext}.bam
 	    fi
 	fi
 
@@ -599,9 +599,9 @@ if [ -z $final ] && [ -z $postproc ]
 then
     if [ $justexact -eq 1 ]
     then
-	samtools view $sthreadstring -h $outputdir/merged_sort.bam | awk -f $juiceDir/scripts/common/dups_sam.awk -v nowobble=1 > $outputdir/merged_dedup.sam
+	samtools view $sthreadstring -h $outputdir/merged_sort.bam | awk -f $juiceDir/scripts/common/dups_sam.awk -v nowobble=1 | gzip > $outputdir/merged_dedup.sam.gz
     else
-	samtools view $sthreadstring -h $outputdir/merged_sort.bam | awk -f $juiceDir/scripts/common/dups_sam.awk  > $outputdir/merged_dedup.sam
+	samtools view $sthreadstring -h $outputdir/merged_sort.bam | awk -f $juiceDir/scripts/common/dups_sam.awk | gzip > $outputdir/merged_dedup.sam.gz
     fi
     if [ $? -ne 0 ]
     then
@@ -635,15 +635,15 @@ if [ -z $postproc ]
         # Check that dedupping worked properly
         # in ideal world, we would check this in split_rmdups and not remove before we know they are correct
 	size1=$(samtools view $sthreadstring -h ${outputdir}/merged_sort.bam | wc -l | awk '{print $1}')
-	size2=$(wc -l ${outputdir}/merged_dedup.sam | awk '{print $1}')
+	size2=$(zcat ${outputdir}/merged_dedup.sam.gz | wc -l | awk '{print $1}')
 	
 	if [ $size1 -ne $size2 ]
 	then
 	    echo "***! Error! The sorted file and dups/no dups files do not add up, or were empty."
 	    exit 1
 	fi
-	samtools view $sthreadstring -F 1024 -O sam ${outputdir}/merged_dedup.sam | awk -v mapq=1 -f ${juiceDir}/scripts/common/sam_to_pre.awk > ${outputdir}/merged1.txt
-	samtools view $sthreadstring -F 1024 -O sam ${outputdir}/merged_dedup.sam | awk -v mapq=30 -f ${juiceDir}/scripts/common/sam_to_pre.awk > ${outputdir}/merged30.txt
+	samtools view $sthreadstring -F 1024 -O sam ${outputdir}/merged_dedup.sam.gz | awk -v mapq=1 -f ${juiceDir}/scripts/common/sam_to_pre.awk > ${outputdir}/merged1.txt
+	samtools view $sthreadstring -F 1024 -O sam ${outputdir}/merged_dedup.sam.gz | awk -v mapq=30 -f ${juiceDir}/scripts/common/sam_to_pre.awk > ${outputdir}/merged30.txt
     else
 	if [ ! -s ${outputdir}/merged1.txt ] 
 	then
@@ -669,9 +669,9 @@ if [ -z $postproc ]
 
     if [ ! -s  ${outputdir}/merged_dedup.bam ]
     then
-	if samtools view -b $sthreadstring ${outputdir}/merged_dedup.sam > ${outputdir}/merged_dedup.bam
+	if samtools view -b $sthreadstring ${outputdir}/merged_dedup.sam.gz > ${outputdir}/merged_dedup.bam
 	then
-	    rm ${outputdir}/merged_dedup.sam
+	    rm ${outputdir}/merged_dedup.sam.gz
 	    rm ${outputdir}/merged_sort.bam
 	fi
     fi
